@@ -1,30 +1,62 @@
-# For more information about using CMake with Android Studio, read the
-# documentation: https://d.android.com/studio/projects/add-native-code.html
-
-# Sets the minimum version of CMake required to build the native library.
 
 cmake_minimum_required(VERSION 3.4.1)
+include_directories(${CMAKE_SOURCE_DIR}/ffmpeg)
+include_directories(${CMAKE_SOURCE_DIR}/yuv)
+include_directories(${CMAKE_SOURCE_DIR}/librtmp)
+include_directories(${CMAKE_SOURCE_DIR}/aac)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L${CMAKE_SOURCE_DIR}/libs/${CMAKE_ANDROID_ARCH_ABI}/")
 
-# Creates and names a library, sets it as either STATIC
-# or SHARED, and provides the relative paths to its source code.
-# You can define multiple libraries, and CMake builds them for you.
-# Gradle automatically packages shared libraries with your APK.
+# 源文件编译生成链接库
+add_library(ffmpeg SHARED
+        FFmpegUtils.cpp
+        wavreader.c
+        RtmpLivePublish.cpp
+        FrameEncoder.cpp
+        AudioEncoder.cpp)
+add_library(avcodec  SHARED
+        IMPORTED )
+set_target_properties( avcodec
+        PROPERTIES IMPORTED_LOCATION
+        ../../../../libs/armeabi-v7a/libavcodec.so)
+add_library(avdevice  SHARED
+        IMPORTED )
+set_target_properties(  avdevice   PROPERTIES IMPORTED_LOCATION      ../../../../libs/armeabi-v7a/libavdevice.so )
+add_library(avfilter  SHARED IMPORTED )
+set_target_properties(  avfilter   PROPERTIES IMPORTED_LOCATION   ../../../../libs/armeabi-v7a/libavfilter.so)
+add_library(avformat  STATIC IMPORTED )
+set_target_properties(avformat   PROPERTIES IMPORTED_LOCATION    ../../../../libs/armeabi-v7a/libavformat.so)
 
-add_library( # Sets the name of the library.
-             native-lib
+add_library(avutil  SHARED
+        IMPORTED )
+set_target_properties(  avutil   PROPERTIES IMPORTED_LOCATION  ../../../../libs/armeabi-v7a/libavutil.so)
 
-             # Sets the library as a shared library.
-             SHARED
+add_library(postproc  SHARED
+        IMPORTED )
+set_target_properties(  postproc   PROPERTIES IMPORTED_LOCATION   ../../../../libs/armeabi-v7a/libpostproc.so)
+add_library(swresample  SHARED
+        IMPORTED )
+set_target_properties( swresample  PROPERTIES IMPORTED_LOCATION  ../../../../libs/armeabi-v7a/libswresample.so)
+add_library(swscale  SHARED
+        IMPORTED )
+set_target_properties( swscale  PROPERTIES IMPORTED_LOCATION   ../../../../libs/armeabi-v7a/libswscale.so)
 
-             # Provides a relative path to your source file(s).
-             native-lib.cpp )
+add_library(x264  STATIC
+        IMPORTED )
 
-# Searches for a specified prebuilt library and stores the path as a
-# variable. Because CMake includes system libraries in the search path by
-# default, you only need to specify the name of the public NDK library
-# you want to add. CMake verifies that the library exists before
-# completing its build.
+set_target_properties( x264  PROPERTIES IMPORTED_LOCATION  ../../../../libs/armeabi-v7a/libx264.a)
 
+add_library(yuv  STATIC
+        IMPORTED )
+
+set_target_properties( yuv  PROPERTIES IMPORTED_LOCATION   ../../../../libs/armeabi-v7a/libyuv.a)
+add_library(rtmp  STATIC
+        IMPORTED )
+
+set_target_properties( rtmp  PROPERTIES IMPORTED_LOCATION  ../../../../libs/armeabi-v7a/librtmp.a)
+add_library(aac  STATIC
+        IMPORTED )
+
+set_target_properties( aac  PROPERTIES IMPORTED_LOCATION   ../../../../libs/armeabi-v7a/libfdk-aac.a)
 find_library( # Sets the name of the path variable.
               log-lib
 
@@ -37,8 +69,19 @@ find_library( # Sets the name of the path variable.
 # build script, prebuilt third-party libraries, or system libraries.
 
 target_link_libraries( # Specifies the target library.
-                       native-lib
-
-                       # Links the target library to the log library
+                        ffmpeg
+                        avcodec
+                        avdevice
+                        avfilter
+                        avformat
+                        avutil
+                        postproc
+                        swresample
+                        swscale
+                        x264
+                        yuv
+                        aac
+                        rtmp
+                           # Links the target library to the log library
                        # included in the NDK.
                        ${log-lib} )
