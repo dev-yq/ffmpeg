@@ -27,7 +27,7 @@ public:
     void addSequenceAacHeader(int timestamp , int sampleRate, int channel);
     void addAccBody(unsigned char* buf, int len, long timeStamp);
     void addSequenceH264Header(unsigned char* sps, int sps_len, unsigned char *pps, int pps_len);
-    void addH264Body(unsigned char* buf, int len, long timeStamp);
+    void addH264Body(unsigned char* buf, int len, long timeStamp  , bool qu);
     void release();
 };
 

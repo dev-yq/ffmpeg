@@ -9,7 +9,7 @@ extern "C" {
 
 #include "ffmpeg/libavutil/pixfmt.h"
 #include "ffmpeg/libavcodec/avcodec.h"
-
+#include <yuv2rgb.h>
 }
 
 #define INBUF_SIZE 4096
@@ -31,16 +31,8 @@ private:
     int i_slice_max_size;
     int b_frame_frq;
 
-    /* x264 struct*/
-    x264_picture_t pic_in;
-    x264_picture_t pic_out;
-    x264_param_t params;
-    x264_nal_t* nals;
-    x264_t* encoder;
-    int num_nals;
 
-    FILE *out1;
-    FILE *out2;
+
 
 public:
     FrameEncoder();
@@ -54,29 +46,19 @@ public:
     /* validates if all params are set correctly, like width,height, etc.. */
     bool validateSettings();
     /* sets the x264 params */
-    void setParams();
-    int getFps() const;
-    void setFps(int fps);
-    int getInHeight() const;
+    x264_param_t * setParams();
+
     void setInHeight(int inHeight);
-    int getInWidth() const;
+
     void setInWidth(int inWidth);
-    int getNumNals() const;
-    void setNumNals(int numNals);
-    int getOutHeight() const;
+
+
     void setOutHeight(int outHeight);
-    int getOutWidth() const;
+
     void setOutWidth(int outWidth);
     int getBitrate() const;
     void setBitrate(int bitrate);
-    int getSliceMaxSize() const;
-    void setSliceMaxSize(int sliceMaxSize);
-    int getVbvBufferSize() const;
-    void setVbvBufferSize(int vbvBufferSize);
-    int getIThreads() const;
-    void setIThreads(int threads);
-    int getBFrameFrq() const;
-    void setBFrameFrq(int frameFrq);
+
 };
 
 

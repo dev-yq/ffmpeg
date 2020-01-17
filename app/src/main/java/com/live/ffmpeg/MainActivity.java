@@ -42,7 +42,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         surfaceView     = findViewById(R.id.fit_text);
         mMediaPublisher = new MediaPublisher();
-        mMediaPublisher.setRtmpUrl("rtmp://118.190.54.75:1935/se");
+        mMediaPublisher.setRtmpUrl("rtmp://118.190.54.75:1935/hls");
         backgroundThread = new HandlerThread("ImageListener");
         backgroundThread.start();
         backgroundHandler = new Handler(backgroundThread.getLooper());
@@ -54,7 +54,6 @@ public class MainActivity extends AppCompatActivity {
         final int orientation = getResources().getConfiguration().orientation;
         final int rotation = getWindowManager().getDefaultDisplay().getRotation();
         CameraUtils.init( surfaceView, cameraManager, orientation, rotation);
-
 
     }
     private void initGetPreviewListener(int  width  ,int  height) {
@@ -73,10 +72,8 @@ public class MainActivity extends AppCompatActivity {
         surfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
             @Override
             public void surfaceCreated(SurfaceHolder holder) {
-
-                initGetPreviewListener(holder.getSurfaceFrame().bottom-   holder.getSurfaceFrame().top,holder.getSurfaceFrame().right -holder.getSurfaceFrame().left);
-
-                CameraUtils.openCamera(MainActivity.this ,holder.getSurfaceFrame().bottom-   holder.getSurfaceFrame().top,holder.getSurfaceFrame().right -holder.getSurfaceFrame().left);
+                initGetPreviewListener(holder.getSurfaceFrame().right -holder.getSurfaceFrame().left,holder.getSurfaceFrame().bottom-   holder.getSurfaceFrame().top);
+                CameraUtils.openCamera(MainActivity.this ,holder.getSurfaceFrame().right -holder.getSurfaceFrame().left,holder.getSurfaceFrame().bottom-   holder.getSurfaceFrame().top);
                 mMediaPublisher.initVideoGather(mOnGetPreviewListener);
                 mMediaPublisher.initAudioGather();
                 mMediaPublisher.startGather();

@@ -19,8 +19,7 @@ public:
     int init();
 
     int encodeAudio(unsigned char* inBytes, int length, unsigned char* outBytes, int outlength);
-    int encodeWAVAudioFile();
-    int encodePCMAudioFile();
+
     bool close();
 
 };

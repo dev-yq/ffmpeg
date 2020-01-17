@@ -74,7 +74,7 @@ extern "C"
 JNIEXPORT jint JNICALL
 Java_com_live_ffmpeg_ffmpeg_FFmpegUtils_sendRtmpVideoData(JNIEnv *env, jclass type,
                                                           jbyteArray data_, jint dataLen,
-                                                          jlong timeStamp) ;
+                                                          jlong timeStamp  ,jboolean  qu) ;
 extern "C"
 
 JNIEXPORT jint JNICALL

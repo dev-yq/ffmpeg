@@ -23,7 +23,6 @@ void RtmpLivePublish::init(unsigned char * url) {
 
 
 
-
     this->rtmp_url = url ;
     rtmp = RTMP_Alloc();
     RTMP_Init(rtmp);
@@ -63,10 +62,11 @@ void RtmpLivePublish::init(unsigned char * url) {
  * @param pps_len
  */
 void RtmpLivePublish::addSequenceH264Header(unsigned char *sps, int sps_len, unsigned char *pps, int pps_len) {
+    int bodySize = sps_len + pps_len + 16;
 
-    RTMPPacket *packet = (RTMPPacket *)malloc(RTMP_HEAD_SIZE + 1024 ) ;
-    memset(packet, 0, RTMP_HEAD_SIZE + 1024);
-    packet->m_body = (char *)packet + RTMP_HEAD_SIZE;
+    RTMPPacket *packet = static_cast<RTMPPacket *>(malloc(sizeof(RTMPPacket)));
+    RTMPPacket_Alloc(packet, bodySize);
+    RTMPPacket_Reset(packet);
 
     unsigned char* body = (unsigned char*)packet->m_body;
 
@@ -110,12 +110,12 @@ void RtmpLivePublish::addSequenceH264Header(unsigned char *sps, int sps_len, uns
     body[i++] = (pps_len >> 8) & 0xff;
     body[i++] = (pps_len) & 0xff;
     memcpy(&body[i], pps, pps_len);
-    i +=  pps_len;
+
 
     //Message Type，RTMP_PACKET_TYPE_VIDEO：0x09
     packet->m_packetType = RTMP_PACKET_TYPE_VIDEO;
     //Payload Length
-    packet->m_nBodySize = i;
+    packet->m_nBodySize = bodySize;
     //Time Stamp：4字节
     //记录了每一个tag相对于第一个tag（File Header）的相对时间。
     //以毫秒为单位。而File Header的time stamp永远为0。
@@ -125,11 +125,10 @@ void RtmpLivePublish::addSequenceH264Header(unsigned char *sps, int sps_len, uns
     packet->m_nChannel = 0x04;
     packet->m_headerType = RTMP_PACKET_SIZE_MEDIUM;
     packet->m_nInfoField2 = rtmp->m_stream_id;
-
     //send rtmp
     if (RTMP_IsConnected(rtmp)) {
         RTMP_SendPacket(rtmp, packet, TRUE);
-        //LOGD("send packet sendSpsAndPps");
+        LOGD("send packet sendSpsAndPps");
     }
     free(packet);
 }
@@ -140,64 +139,51 @@ void RtmpLivePublish::addSequenceH264Header(unsigned char *sps, int sps_len, uns
  * @param len
  * @param timeStamp
  */
-void RtmpLivePublish::addH264Body(unsigned char *buf, int len, long timeStamp) {
+void RtmpLivePublish::addH264Body(unsigned char *buf, int len, long timeStamp  , bool f) {
 
+    int bodySize = len + 9;
 
-
-    LOGE("--------------i=%d" ,len);
-    if (buf[2] == 0x00) {
-        //00 00 00 01
-        buf += 4;
-        len -= 4;
-    } else if (buf[2] == 0x01) {
-        // 00 00 01
-        buf += 3;
-        len -= 3;
-    }
-    int body_size = len + 9;
-
-    RTMPPacket *packet = (RTMPPacket *)malloc(RTMP_HEAD_SIZE + 9 + len);
-    memset(packet, 0, RTMP_HEAD_SIZE);
-    packet->m_body = (char *)packet + RTMP_HEAD_SIZE;
-
+    RTMPPacket *packet = static_cast<RTMPPacket *> (malloc(sizeof(RTMPPacket)));
+    RTMPPacket_Alloc(packet, bodySize);
+    RTMPPacket_Reset(packet);
     unsigned char *body = (unsigned char*)packet->m_body;
-    int type = buf[0] & 0x1f;
-    //Pframe  7:AVC
-    body[0] = 0x27;
-
-    if (type == NAL_SLICE_IDR) {
-        body[0] = 0x17;
+    int  i  = 0;
+    if ( f) {
+        //00 00 00 01
+        body[i++] = 0x17;
+    } else  {
+        // 00 00 01
+        body[i++] = 0x27;
     }
 
-    body[1] = 0x01;
+    body[i++] = 0x01;
 
-    body[2] = 0x00;
-    body[3] = 0x00;
-    body[4] = 0x00;
+    body[i++] = 0x00;
+    body[i++] = 0x00;
+    body[i++] = 0x00;
 
     //写入NALU信息，右移8位，一个字节的读取
-    body[5] = (len >> 24) & 0xff;
-    body[6] = (len >> 16) & 0xff;
-    body[7] = (len >> 8) & 0xff;
-    body[8] = (len) & 0xff;
+    body[i++] = (len >> 24) & 0xff;
+    body[i++] = (len >> 16) & 0xff;
+    body[i++] = (len >> 8) & 0xff;
+    body[i++] = (len) & 0xff;
 
     /*copy data*/
-    memcpy(&body[9], buf, len);
+    memcpy(&body[i], buf, len);
 
     packet->m_hasAbsTimestamp = 0;
-    packet->m_nBodySize = body_size;
+    packet->m_nBodySize = bodySize;
     //当前packet的类型：Video
     packet->m_packetType = RTMP_PACKET_TYPE_VIDEO;
     packet->m_nChannel = 0x04;
     packet->m_headerType = RTMP_PACKET_SIZE_LARGE;
     packet->m_nInfoField2 = rtmp->m_stream_id;
-    //记录了每一个tag相对于第一个tag（File Header）的相对时间
+
     packet->m_nTimeStamp = RTMP_GetTime() - start_time;
 
-    //send rtmp h264 body data
     if (RTMP_IsConnected(rtmp)) {
         RTMP_SendPacket(rtmp, packet, TRUE);
-        LOGD("send packet sendVideoData");
+
     }
     free(packet);
 }
@@ -231,13 +217,6 @@ void RtmpLivePublish::addSequenceAacHeader(int sampleRate, int channel, int time
     //AACPacketType:0表示AAC sequence header
     body[1] = 0x00;
 
-    //5bit audioObjectType 编码结构类型，AAC-LC为2 二进制位00010
-    //4bit samplingFrequencyIndex 音频采样索引值，44100对应值是4，二进制位0100
-    //4bit channelConfiguration 音频输出声道，对应的值是2，二进制位0010
-    //1bit frameLengthFlag 标志位用于表明IMDCT窗口长度 0 二进制位0
-    //1bit dependsOnCoreCoder 标志位，表面是否依赖与corecoder 0 二进制位0
-    //1bit extensionFlag 选择了AAC-LC,这里必须是0 二进制位0
-    //上面都合成二进制0001001000010000
     uint16_t audioConfig = 0 ;
     //这里的2表示对应的是AAC-LC 由于是5个bit，左移11位，变为16bit，2个字节
     //与上一个1111100000000000(0xF800)，即只保留前5个bit

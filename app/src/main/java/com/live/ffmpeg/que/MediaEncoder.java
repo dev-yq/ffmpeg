@@ -9,6 +9,8 @@ import com.live.ffmpeg.camera.VideoData;
 import com.live.ffmpeg.ffmpeg.FFmpegUtils;
 import com.live.ffmpeg.utis.Contacts;
 
+import java.lang.reflect.Array;
+import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -17,7 +19,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class MediaEncoder {
     private static final String TAG = "MediaEncoder";
 
-    private Thread videoEncoderThread, audioEncoderThread;
+    private Thread audioEncoderThread;
     private boolean videoEncoderLoop, audioEncoderLoop;
 
     //视频流队列
@@ -26,12 +28,13 @@ public class MediaEncoder {
     private LinkedBlockingQueue<AudioData> audioQueue;
 
 
-
     private int fps = 0;
     private int audioEncodeBuffer;
 
     private static MediaEncoderCallback sMediaEncoderCallback;
     public interface MediaEncoderCallback {
+
+
         void receiveEncoderVideoData(byte[] videoData, int totalLength, int[] segment);
         void receiveEncoderAudioData(byte[] audioData, int size);
     }
@@ -61,9 +64,45 @@ public class MediaEncoder {
     }
 
     //摄像头的YUV420P数据，put到队列中，生产者模型
-    public void putVideoData(VideoData videoData) {
+    public void putVideoData(VideoData videoData1) {
         try {
-            videoQueue.put(videoData);
+            videoQueue.put(videoData1);
+
+            try {
+                //队列中取视频数据
+                VideoData videoData = videoQueue.take();
+                byte[] outbuffer = new byte[640* 480];
+                int[] buffLength = new int[10];
+                //对YUV420P进行h264编码，返回一个数据大小，里面是编码出来的h264数据
+                int numNals = FFmpegUtils.encoderVideoEncode(videoData.videoData, videoData.videoData.length, fps, outbuffer, buffLength);
+                Log.e("RiemannLee", "data.length " +  videoData.videoData.length + " h264 encode length " + buffLength[0]);
+                if (numNals > 0) {
+
+                    int[] segment = new int[numNals];
+                    System.arraycopy(buffLength, 0, segment, 0, numNals);
+                    int totalLength = 0;
+                    for (int i = 0; i < segment.length; i++) {
+                        totalLength += segment[i];
+                    }
+                    //编码后的h264数据
+                    byte[] encodeData = new byte[totalLength];
+
+                    System.arraycopy(outbuffer, 0, encodeData, 0, encodeData.length);
+
+                    if (sMediaEncoderCallback != null) {
+                        sMediaEncoderCallback.receiveEncoderVideoData(encodeData, encodeData.length, segment);
+
+                        encodeData = null;
+                        outbuffer    =null;
+                    }
+                    fps++;
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+
+
+        }
+
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -80,7 +119,7 @@ public class MediaEncoder {
 
     public void stopVideoEncode() {
         videoEncoderLoop = false;
-        videoEncoderThread.interrupt();
+
     }
 
     public void stopAudioEncode() {
@@ -93,46 +132,11 @@ public class MediaEncoder {
             throw new RuntimeException("必须先停止");
         }
 
-        videoEncoderThread = new Thread() {
-            @Override
-            public void run() {
-                //视频消费者模型，不断从队列中取出视频流来进行h264编码
-                while (videoEncoderLoop && !Thread.interrupted()) {
-                    try {
-                        //队列中取视频数据
-                        VideoData videoData = videoQueue.take();
-                        fps++;
-                        byte[] outbuffer = new byte[videoData.width * videoData.height];
-                        int[] buffLength = new int[10];
-                        //对YUV420P进行h264编码，返回一个数据大小，里面是编码出来的h264数据
-                        int numNals = FFmpegUtils.encoderVideoEncode(videoData.videoData, videoData.videoData.length, fps, outbuffer, buffLength);
-                        Log.e("RiemannLee", "data.length " +  videoData.videoData.length + " h264 encode length " + buffLength[0]);
-                        if (numNals > 0) {
-                            int[] segment = new int[numNals];
-                            System.arraycopy(buffLength, 0, segment, 0, numNals);
-                            int totalLength = 0;
-                            for (int i = 0; i < segment.length; i++) {
-                                totalLength += segment[i];
-                            }
-                            //Log.i("RiemannLee", "###############totalLength " + totalLength);
-                            //编码后的h264数据
-                            byte[] encodeData = new byte[totalLength];
-                            System.arraycopy(outbuffer, 0, encodeData, 0, encodeData.length);
-                            if (sMediaEncoderCallback != null) {
-                                sMediaEncoderCallback.receiveEncoderVideoData(encodeData, encodeData.length, segment);
-                            }
 
-                        }
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                        break;
-                    }
-                }
 
-            }
-        };
-        videoEncoderLoop = true;
-        videoEncoderThread.start();
+
+
+
     }
 
     public void startAudioEncode() {
@@ -168,6 +172,8 @@ public class MediaEncoder {
                                     if (sMediaEncoderCallback != null) {
                                         //编码后，把数据抛给rtmp去推流
                                         sMediaEncoderCallback.receiveEncoderAudioData(encodeData, VALID_LENGTH);
+                                        audioQueue.remove(audio);
+
                                     }
                                     //我们可以把Fdk-aac编码后的数据保存到文件中，然后用播放器听一下，音频文件是否编码正确
 

@@ -25,12 +25,13 @@ using namespace libyuv;
 jbyte *temp_i420_data;
 jbyte *temp_i420_data_scale;
 jbyte *temp_i420_data_rotate;
-FrameEncoder* frameEncoder;
+
 AudioEncoder* audioEncoder;
 RtmpLivePublish* rtmpLivePublish;
 AVDictionary * param = NULL;
-static JavaVM *jvm = NULL;
 
+jint     totalWidth  ,totalHeight;
+static JavaVM *jvm = NULL;
 
 
 
@@ -48,6 +49,11 @@ void init(jint width, jint height, jint dst_width, jint dst_height) {
     temp_i420_data = (jbyte *) malloc(sizeof(jbyte) * width * height * 3 / 2);
     temp_i420_data_scale = (jbyte *) malloc(sizeof(jbyte) * dst_width * dst_height * 3 / 2);
     temp_i420_data_rotate = (jbyte *) malloc(sizeof(jbyte) * dst_width * dst_height * 3 / 2);
+
+    totalWidth     =  dst_width;
+
+
+    totalHeight  = dst_height;
 
 
 
@@ -132,6 +138,8 @@ void mirrorI420(jbyte *src_i420_data, jint width, jint height, jbyte *dst_i420_d
 //NV21转化为YUV420P数据
 void nv21ToI420(jbyte *src_nv21_data, jint width, jint height, jbyte *src_i420_data) {
     //Y通道数据大小
+    src_i420_data =  src_nv21_data  ;
+
     jint src_y_size = width * height;
     //U通道数据大小
     jint src_u_size = (width >> 1) * (height >> 1);
@@ -146,13 +154,13 @@ void nv21ToI420(jbyte *src_nv21_data, jint width, jint height, jbyte *src_i420_d
     jbyte *src_i420_u_data = src_i420_data + src_y_size;
     //YUV420P中V通道数据
     jbyte *src_i420_v_data = src_i420_data + src_y_size + src_u_size;
-//    //直接调用libyuv中接口，把NV21数据转化为YUV420P标准数据，此时，它们的存储大小是不变的
-    libyuv::NV21ToI420((const uint8 *) src_nv21_y_data, width,
-                       (const uint8 *) src_nv21_vu_data, width,
-                       (uint8 *) src_i420_y_data, width,
-                       (uint8 *) src_i420_u_data, width >> 1,
-                       (uint8 *) src_i420_v_data, width >> 1,
-                       width, height);
+    //直接调用libyuv中接口，把NV21数据转化为YUV420P标准数据，此时，它们的存储大小是不变的
+//    libyuv::YUY2ToI420((const uint8 *) src_nv21_y_data, width,
+//                       (const uint8 *) src_nv21_vu_data, width,
+//                       (uint8 *) src_i420_y_data, width,
+//                       (uint8 *) src_i420_u_data, width >> 1,
+//                       (uint8 *) src_i420_v_data, width >> 1,
+//                       width, height);
 
 
 }
@@ -170,7 +178,9 @@ extern "C" JNIEXPORT jint JNICALL Java_com_live_ffmpeg_ffmpeg_FFmpegUtils_releas
     free(temp_i420_data);
     free(temp_i420_data_scale);
     free(temp_i420_data_rotate);
-    free(frameEncoder);
+
+
+
     free(audioEncoder);
     free(rtmpLivePublish);
     return 0;
@@ -216,8 +226,8 @@ extern "C" JNIEXPORT jint JNICALL Java_com_live_ffmpeg_ffmpeg_FFmpegUtils_compre
 
     jbyte *Src_data = env->GetByteArrayElements(src_, NULL);
     jbyte *Dst_data = env->GetByteArrayElements(dst_, NULL);
-
-
+    //进行缩放的操作，这个缩放，会把数据压缩
+    nv21ToI420(Src_data, width, height, temp_i420_data);
     //进行缩放的操作，这个缩放，会把数据压缩
     scaleI420(temp_i420_data, width, height, temp_i420_data_scale, dst_width, dst_height, mode);
 //    //如果是前置摄像头，进行镜像操作
@@ -233,6 +243,9 @@ extern "C" JNIEXPORT jint JNICALL Java_com_live_ffmpeg_ffmpeg_FFmpegUtils_compre
     env->ReleaseByteArrayElements(dst_, Dst_data, 0);
     env->ReleaseByteArrayElements(src_, Src_data, 0);
 
+
+
+
     return 0;
 }
 
@@ -244,24 +257,18 @@ extern "C" JNIEXPORT jint JNICALL Java_com_live_ffmpeg_ffmpeg_FFmpegUtils_cropYU
     if (left + dst_width > width || top + dst_height > height) {
         return -1;
     }
-
     //left和top必须为偶数，否则显示会有问题
     if (left % 2 != 0 || top % 2 != 0) {
         return -1;
     }
-
     jint src_length = env->GetArrayLength(src_);
     jbyte *src_i420_data = env->GetByteArrayElements(src_, NULL);
     jbyte *dst_i420_data = env->GetByteArrayElements(dst_, NULL);
-
-
     jint dst_i420_y_size = dst_width * dst_height;
     jint dst_i420_u_size = (dst_width >> 1) * (dst_height >> 1);
-
     jbyte *dst_i420_y_data = dst_i420_data;
     jbyte *dst_i420_u_data = dst_i420_data + dst_i420_y_size;
     jbyte *dst_i420_v_data = dst_i420_data + dst_i420_y_size + dst_i420_u_size;
-
     libyuv::ConvertToI420((const uint8 *) src_i420_data, src_length,
                           (uint8 *) dst_i420_y_data, dst_width,
                           (uint8 *) dst_i420_u_data, dst_width >> 1,
@@ -270,6 +277,7 @@ extern "C" JNIEXPORT jint JNICALL Java_com_live_ffmpeg_ffmpeg_FFmpegUtils_cropYU
                           width, height,
                           dst_width, dst_height,
                           libyuv::kRotate0, libyuv::FOURCC_I420);
+
 
     env->ReleaseByteArrayElements(src_, src_i420_data, 0);
     env->ReleaseByteArrayElements(dst_, dst_i420_data, 0);
@@ -281,13 +289,7 @@ extern "C" JNIEXPORT jint JNICALL Java_com_live_ffmpeg_ffmpeg_FFmpegUtils_cropYU
 extern "C" JNIEXPORT jint JNICALL Java_com_live_ffmpeg_ffmpeg_FFmpegUtils_encoderVideoinit
         (JNIEnv *env, jclass type, jint jwidth, jint jheight, jint joutwidth, jint joutheight)
 {
-    frameEncoder = new FrameEncoder();
-    frameEncoder->setInWidth(jwidth);
-    frameEncoder->setInHeight(jheight);
-    frameEncoder->setOutWidth(joutwidth);
-    frameEncoder->setOutHeight(joutheight);
-    frameEncoder->setBitrate(128);
-    frameEncoder->open();
+
     return 0;
 }
 
@@ -299,8 +301,15 @@ extern "C" JNIEXPORT jint JNICALL Java_com_live_ffmpeg_ffmpeg_FFmpegUtils_encode
     jbyte *Dst_data = env->GetByteArrayElements(jdstFrame, NULL);
     jint *dstFrameSize = env->GetIntArrayElements(jdstFrameSize, NULL);
 
-    int numNals = frameEncoder->encodeFrame((char*)Src_data, jframeSize, counter, (char*)Dst_data, dstFrameSize);
 
+
+    rotateI420(Src_data, 640, 480, temp_i420_data, 270);
+    mirrorI420(temp_i420_data, 480, 640, temp_i420_data_rotate);
+    FrameEncoder *
+    frameEncoder = new FrameEncoder();
+    int numNals = frameEncoder->encodeFrame((char*)temp_i420_data_rotate, jframeSize, counter, (char*)Dst_data, dstFrameSize);
+
+    free(frameEncoder);
     env->ReleaseByteArrayElements(jdstFrame, Dst_data, 0);
     env->ReleaseByteArrayElements(jsrcFrame, Src_data, 0);
     env->ReleaseIntArrayElements(jdstFrameSize, dstFrameSize, 0);
@@ -322,9 +331,7 @@ extern "C" JNIEXPORT jint JNICALL Java_com_live_ffmpeg_ffmpeg_FFmpegUtils_encode
 {
     jbyte *Src_data = env->GetByteArrayElements(jsrcFrame, NULL);
     jbyte *Dst_data = env->GetByteArrayElements(jdstFrame, NULL);
-
     int validlength = audioEncoder->encodeAudio((unsigned char*)Src_data, jframeSize, (unsigned char*)Dst_data, jdstSize);
-
     env->ReleaseByteArrayElements(jdstFrame, Dst_data, 0);
     env->ReleaseByteArrayElements(jsrcFrame, Src_data, 0);
 
@@ -340,9 +347,9 @@ extern "C" JNIEXPORT jint JNICALL Java_com_live_ffmpeg_ffmpeg_FFmpegUtils_initRt
     char *rtmp_path = (char*)malloc(strlen(url_cstr) + 1);
     memset(rtmp_path, 0, strlen(url_cstr) + 1);
     memcpy(rtmp_path, url_cstr, strlen(url_cstr));
-
     rtmpLivePublish = new RtmpLivePublish();
     rtmpLivePublish->init((unsigned char*)rtmp_path);
+
     return 0;
 }
 
@@ -353,30 +360,32 @@ extern "C" JNIEXPORT jint JNICALL Java_com_live_ffmpeg_ffmpeg_FFmpegUtils_sendRt
     if (rtmpLivePublish) {
         jbyte *sps_data = env->GetByteArrayElements(jspsArray, NULL);
         jbyte *pps_data = env->GetByteArrayElements(ppsArray, NULL);
-
         rtmpLivePublish->addSequenceH264Header((unsigned char*) sps_data, spsLen, (unsigned char*) pps_data, ppsLen);
-
         env->ReleaseByteArrayElements(jspsArray, sps_data, 0);
         env->ReleaseByteArrayElements(ppsArray, pps_data, 0);
     }
     return 0;
 }
 
+
 //发送视频数据
 extern "C" JNIEXPORT jint JNICALL Java_com_live_ffmpeg_ffmpeg_FFmpegUtils_sendRtmpVideoData
-        (JNIEnv *env, jclass type, jbyteArray jvideoData, jint dataLen, jlong jstamp)
+        (JNIEnv *env, jclass type, jbyteArray jvideoData, jint dataLen, jlong jstamp  ,jboolean   qu)
 {
     if (rtmpLivePublish) {
         jbyte *video_data = env->GetByteArrayElements(jvideoData, NULL);
 
 
-
-
-
-        rtmpLivePublish->addH264Body((unsigned char*)video_data, dataLen, jstamp);
+        rtmpLivePublish->addH264Body((unsigned char*)video_data, dataLen, jstamp ,qu);
 
         env->ReleaseByteArrayElements(jvideoData, video_data, 0);
     }
+
+
+
+
+
+
     return 0;
 }
 
@@ -417,5 +426,75 @@ extern "C" JNIEXPORT jint JNICALL Java_com_live_ffmpeg_ffmpeg_FFmpegUtils_releas
 
 
 
+extern "C"
+JNIEXPORT jbyteArray JNICALL
+Java_com_live_ffmpeg_ffmpeg_FFmpegUtils_changeWidthAndHeight(JNIEnv *env, jclass type,
+                                                             jbyteArray src, jint srcWidth,
+                                                             jint height) {
+    jbyte *in = env->GetByteArrayElements(src, NULL);
 
 
+
+
+      jsize  size  =   env->GetArrayLength(src);
+
+    jbyteArray  dst  =  env->NewByteArray(size);
+
+
+    jbyte  * out    = static_cast<jbyte *>(malloc(sizeof(in)));
+    // TODO
+
+    // TODO
+    static int nWidth = 0, nHeight = 0;
+    static int wh = 0;
+    static int uvHeight = 0;
+    if(srcWidth != nWidth || height != nHeight)
+    {
+        nWidth = srcWidth;
+        nHeight = height;
+        wh = srcWidth * height;
+        uvHeight = height >> 1;//uvHeight = height / 2
+    }
+
+
+
+    //旋转Y
+    int k = 0;
+    for(int i = 0; i < srcWidth; i++){
+        int nPos = srcWidth - 1;
+        for(int j = 0; j < height; j++)
+        {
+            out[k]= in [nPos - i];
+
+
+            LOGE("-------------=%d" ,   out[k]);
+            k++;
+            nPos += srcWidth;
+        }
+    }
+
+    for(int i = 0; i < srcWidth; i+=2){
+        int nPos = wh + srcWidth - 1;
+        for(int j = 0; j < uvHeight; j++) {
+            out[k]= in [nPos - i - 1];
+
+            out[k+1]= in[ nPos - i];
+
+            k += 2;
+            nPos += srcWidth;
+        }
+    }
+
+
+
+
+
+
+    env->SetByteArrayRegion(dst, 0  , strlen(reinterpret_cast<const char *>(out)) , out);
+
+    env->ReleaseByteArrayElements(src, in, 0);
+
+    env->ReleaseByteArrayElements(src  ,out ,0);
+
+    return   dst;
+}

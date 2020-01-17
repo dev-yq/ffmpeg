@@ -47,10 +47,12 @@ public class MediaPublisher {
     public MediaPublisher() {
         mediaEncoder = new MediaEncoder();
 
-        MediaEncoder.setsMediaEncoderCallback(new MediaEncoder.MediaEncoderCallback() {
+        mediaEncoder.setsMediaEncoderCallback(new MediaEncoder.MediaEncoderCallback() {
             @Override
             public void receiveEncoderVideoData(byte[] videoData, int totalLength, int[] segment) {
-                onEncoderVideoData(videoData, totalLength, segment);
+               onEncoderVideoData(videoData, totalLength, segment);
+                videoData = null;
+
             }
 
             @Override
@@ -85,10 +87,10 @@ public class MediaPublisher {
             public void onYUVDataReceiver(byte[] data, int width, int height) {
                 if (isPublish) {
                     VideoData videoData = new VideoData(data, width, height);
-
-
                     mediaEncoder.putVideoData(videoData);
                 }
+
+
             }
         });
     }
@@ -104,6 +106,8 @@ public class MediaPublisher {
                 }
             }
         });
+
+
     }
 
     public void startMediaEncoder() {
@@ -157,35 +161,51 @@ public class MediaPublisher {
         byte[] pps = null;
         int haveCopy = 0;
 
-        for (int i = 0; i < segment.length; i++) {
-            int segmentLength = segment[i];
-            byte[] segmentByte = new byte[segmentLength];
-            System.arraycopy(encodeVideoData, haveCopy, segmentByte, 0, segmentLength);
-            haveCopy += segmentLength;
+            for (int i = 0; i < segment.length; i++) {
+                int segmentLength = segment[i];
+                byte[] segmentByte = new byte[segmentLength];
 
-            int offset = 4;
-            if (segmentByte[2] == 0x01) {
-                offset = 3;
+
+                if (segmentByte.length>=3){
+                    System.arraycopy(encodeVideoData, haveCopy, segmentByte, 0, segmentLength);
+                    haveCopy += segmentLength;
+
+                    int offset = 4;
+                    if (segmentByte[2] == 0x01) {
+                        offset = 3;
+                    }
+                    int type = segmentByte[offset] & 0x1f;
+                    Log.e("RiemannLee", "NAL_PPS ppsLen " + type);
+
+                    if (type == NAL_SPS) {
+                        spsLen = segment[i] - 4;
+                        sps = new byte[spsLen];
+                        System.arraycopy(segmentByte, 4, sps, 0, spsLen);
+
+                    } else if (type == NAL_PPS) {
+                        ppsLen = segment[i] - 4;
+                        pps = new byte[ppsLen];
+                        System.arraycopy(segmentByte, 4, pps, 0, ppsLen);
+
+                        sendVideoSpsAndPPS(sps, spsLen, pps, ppsLen, 0);
+                    } else   if (type  ==NAL_SLICE_IDR){
+                        //如果是关键帧，则在发送该帧之前先发送SPS和PPS
+                        sendVideoData(segmentByte, segmentLength, videoID++ ,true);
+                    }
+                    else {
+                        sendVideoData(segmentByte, segmentLength, videoID++ ,false);
+                    }
+                }
+
+
+                segmentByte     = null;
             }
-            int type = segmentByte[offset] & 0x1f;
-            //Log.d("RiemannLee", "type= " + type);
-            //获取到NALU的type，SPS，PPS，SEI，还是关键帧
-            if (type == NAL_SPS) {
-                spsLen = segment[i] - 4;
-                sps = new byte[spsLen];
-                System.arraycopy(segmentByte, 4, sps, 0, spsLen);
-                //Log.e("RiemannLee", "NAL_SPS spsLen " + spsLen);
-            } else if (type == NAL_PPS) {
-                ppsLen = segment[i] - 4;
-                pps = new byte[ppsLen];
-                System.arraycopy(segmentByte, 4, pps, 0, ppsLen);
-                //Log.e("RiemannLee", "NAL_PPS ppsLen " + ppsLen);
-                sendVideoSpsAndPPS(sps, spsLen, pps, ppsLen, 0);
-            } else {
-                //如果是关键帧，则在发送该帧之前先发送SPS和PPS
-                sendVideoData(segmentByte, segmentLength, videoID++);
-            }
-        }
+
+
+
+        encodeVideoData    =null;
+
+
     }
 
     private void sendVideoSpsAndPPS(final byte[] sps, final int spsLen, final byte[] pps, final int ppsLen, final long timeStamp) {
@@ -202,11 +222,11 @@ public class MediaPublisher {
         }
     }
 
-    private void sendVideoData(final byte[] data, final int dataLen, final long timeStamp) {
+    private void sendVideoData(final byte[] data, final int dataLen, final long timeStamp ,final boolean  f) {
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
-                FFmpegUtils.sendRtmpVideoData(data, dataLen, timeStamp);
+                FFmpegUtils.sendRtmpVideoData(data, dataLen, timeStamp ,f);
             }
         };
         try {

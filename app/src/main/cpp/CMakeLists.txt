@@ -40,6 +40,7 @@ add_library(swscale  SHARED
         IMPORTED )
 set_target_properties( swscale  PROPERTIES IMPORTED_LOCATION   ../../../../libs/armeabi-v7a/libswscale.so)
 
+
 add_library(x264  STATIC
         IMPORTED )
 

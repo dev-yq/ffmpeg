@@ -109,7 +109,7 @@ public class FFmpegUtils {
      * @param timeStamp
      * @return
      */
-    public static native int sendRtmpVideoData(byte[] data, int dataLen, long timeStamp);
+    public static native int sendRtmpVideoData(byte[] data, int dataLen, long timeStamp  ,boolean  q);
 
     /**
      * 发送AAC Sequence HEAD 头数据
@@ -136,6 +136,9 @@ public class FFmpegUtils {
 
 
 
+
+
+    public   static    native    byte []      changeWidthAndHeight(byte []  in     ,int  width   ,int   height);
 
     //推流，将Y、U、V数据分开传递
     public static native  int pushCameraData(byte[] buffer,int ylen,byte[] ubuffer,int ulen,byte[] vbuffer,int vlen);

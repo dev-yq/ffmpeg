@@ -20,6 +20,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.media.Image;
@@ -27,6 +28,7 @@ import android.media.ImageReader;
 import android.media.ImageReader.OnImageAvailableListener;
 import android.os.Build;
 import android.os.Handler;
+import android.os.Trace;
 import android.util.Log;
 import android.widget.ImageView;
 
@@ -35,9 +37,14 @@ import androidx.annotation.RequiresApi;
 import com.live.ffmpeg.camera.listener.CameraYUVDataListener;
 import com.live.ffmpeg.ffmpeg.FFmpegUtils;
 
+import org.json.JSONObject;
+import org.json.JSONStringer;
+
 import java.nio.ByteBuffer;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import static androidx.constraintlayout.widget.Constraints.TAG;
+import static com.live.ffmpeg.ffmpeg.FFmpegUtils.changeWidthAndHeight;
 import static com.live.ffmpeg.ffmpeg.FFmpegUtils.pushCameraData;
 
 /**
@@ -47,13 +54,9 @@ import static com.live.ffmpeg.ffmpeg.FFmpegUtils.pushCameraData;
 public class OnGetImageListener implements OnImageAvailableListener {
     private Handler mInferenceHandler;
     private Context mContext;
-    private LinkedBlockingQueue<byte[]> mQueue = new LinkedBlockingQueue<>();
     CameraYUVDataListener cameraYUVDataListener;
-
-
     private int width, height;
     private boolean mIsComputing = false;
-
     public void initialize(
             final Context context,
             final Handler handler, int width, int height) {
@@ -85,161 +88,134 @@ public class OnGetImageListener implements OnImageAvailableListener {
 
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
     @Override
     public void onImageAvailable(final ImageReader reader) {
 
-       Image mage = reader.acquireLatestImage();
 
 
 
 
+        Image image = reader.acquireLatestImage();
+        byte[] srcData   =     getDataFromImage( image ,2);
+        if (cameraYUVDataListener != null) {
 
 
 
 
-
-
-
-
-
-                        try {
-
-                            ByteBuffer byteBuffer = mage.getPlanes()[0].getBuffer();
-
-
-                            byte[] srcData = new byte[byteBuffer.remaining()];
-
-                            byteBuffer.get(srcData);
-                            mQueue.put(srcData);
-                            byte   []  sr    = mQueue.take()  ;
-
-
-
-//                            FFmpegUtils.compressYUV(sr, width, height, dstData, width, height, 0, CameraUtils.mRotation, true);
-//                            final byte[] cropData = new byte[480 * 640 * 3 / 2];
-//                            FFmpegUtils.cropYUV(dstData, 480, 640, cropData, 480, 640, 0, 0);
-
-
-                            if (cameraYUVDataListener != null) {
-                                cameraYUVDataListener.onYUVDataReceiver(sr, width, height);
-                            }
-
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-
-
-
-
-
-
-
-
-            mage.close();
-
-
-
-
-
-
-//        Image image = reader.acquireLatestImage();
 //
-//        if (image == null) {
-//            return;
-//        }
-//
-//        final Image.Plane[] planes = image.getPlanes();
-//
-//        int width = image.getWidth();
-//        int height = image.getHeight();
-//
-//        // Y、U、V数据
-//        byte[] yBytes = new byte[width * height];
-//        byte uBytes[] = new byte[width * height / 4];
-//        byte vBytes[] = new byte[width * height / 4];
-//
-//        //目标数组的装填到的位置
-//        int dstIndex = 0;
-//        int uIndex = 0;
-//        int vIndex = 0;
-//
-//        int pixelsStride, rowStride;
-//        for (int i = 0; i < planes.length; i++) {
-//            pixelsStride = planes[i].getPixelStride();
-//            rowStride = planes[i].getRowStride();
-//
-//            ByteBuffer buffer = planes[i].getBuffer();
-//
-//            //如果pixelsStride==2，一般的Y的buffer长度=640*480，UV的长度=640*480/2-1
-//            //源数据的索引，y的数据是byte中连续的，u的数据是v向左移以为生成的，两者都是偶数位为有效数据
-//            byte[] bytes = new byte[buffer.capacity()];
-//            buffer.get(bytes);
-//
-//            int srcIndex = 0;
-//            if (i == 0) {
-//                //直接取出来所有Y的有效区域，也可以存储成一个临时的bytes，到下一步再copy
-//                for (int j = 0; j < height; j++) {
-//                    System.arraycopy(bytes, srcIndex, yBytes, dstIndex, width);
-//                    srcIndex += rowStride;
-//                    dstIndex += width;
-//                }
-//            } else if (i == 1) {
-//                //根据pixelsStride取相应的数据
-//                for (int j = 0; j < height / 2; j++) {
-//                    for (int k = 0; k < width / 2; k++) {
-//                        uBytes[uIndex++] = bytes[srcIndex];
-//                        srcIndex += pixelsStride;
-//                    }
-//                    if (pixelsStride == 2) {
-//                        srcIndex += rowStride - width;
-//                    } else if (pixelsStride == 1) {
-//                        srcIndex += rowStride - width / 2;
-//                    }
-//                }
-//            } else if (i == 2) {
-//                //根据pixelsStride取相应的数据
-//                for (int j = 0; j < height / 2; j++) {
-//                    for (int k = 0; k < width / 2; k++) {
-//                        vBytes[vIndex++] = bytes[srcIndex];
-//                        srcIndex += pixelsStride;
-//                    }
-//                    if (pixelsStride == 2) {
-//                        srcIndex += rowStride - width;
-//                    } else if (pixelsStride == 1) {
-//                        srcIndex += rowStride - width / 2;
-//                    }
-//                }
-//            }
-//        }
-//        // 将YUV数据交给C层去处理。
-////            FFmpegUtils.pushCameraData(yBytes, yBytes.length, uBytes, uBytes.length, vBytes, vBytes.length);
-//        image.close();
+//            byte   []  ds  =    FFmpegUtils.changeWidthAndHeight(srcData  ,image.getWidth(),image.getHeight());
 
 
 
 
+            //旋转
+          cameraYUVDataListener.onYUVDataReceiver(srcData, image.getWidth(),image.getHeight());
+            srcData   =null;
+          //  ds  = null;
+        }
 
+        image.close();
 
-}
-
-
-
-
-
-
-
-
-
-
-    public   void setYuvDataListener(CameraYUVDataListener cameraYUVDataListener){
-
-
-
-
-        this.cameraYUVDataListener     =cameraYUVDataListener;
     }
 
 
+    public void setYuvDataListener(CameraYUVDataListener cameraYUVDataListener) {
+        this.cameraYUVDataListener = cameraYUVDataListener;
+    }
+
+
+    private static final int COLOR_FormatI420 = 1;
+    private static final int COLOR_FormatNV21 = 2;
+
+    private boolean isImageFormatSupported(Image image) {
+
+        if (image !=null){
+            int format = image.getFormat();
+            switch (format) {
+                case ImageFormat.YUV_420_888:
+                case ImageFormat.NV21:
+                case ImageFormat.YV12:
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+    private byte[] getDataFromImage(Image image, int colorFormat) {
+        if (!isImageFormatSupported(image)) {
+            throw new RuntimeException("can't convert Image to byte array, format " );
+        }
+        android.graphics. Rect crop = image.getCropRect();
+        int format = image.getFormat();
+        int width = crop.width();
+        int height = crop.height();
+        Image.Plane[] planes = image.getPlanes();
+        int   total    =  width * height * ImageFormat.getBitsPerPixel(format) / 8;
+        byte[] data = new byte[total];
+        byte[] rowData = new byte[planes[0].getRowStride()];
+        int channelOffset = 0;
+        int outputStride = 1;
+        for (int i = 0; i < planes.length; i++) {
+            switch (i) {
+                case 0:
+                    channelOffset = 0;
+                    outputStride = 1;
+                    break;
+                case 1:
+                    if (colorFormat == COLOR_FormatI420) {
+                        channelOffset = width * height;
+                        outputStride = 1;
+                    } else if (colorFormat == COLOR_FormatNV21) {
+                        channelOffset = width * height + 1;
+                        outputStride = 2;
+                    }
+                    break;
+                case 2:
+                    if (colorFormat == COLOR_FormatI420) {
+                        channelOffset = (int) (width * height * 1.5);
+                        outputStride = 1;
+                    } else if (colorFormat == COLOR_FormatNV21) {
+                        channelOffset = width * height;
+                        outputStride = 2;
+                    }
+                    break;
+            }
+
+            ByteBuffer buffer = planes[i].getBuffer();
+            int rowStride = planes[i].getRowStride();
+            int pixelStride = planes[i].getPixelStride();
+
+            int shift = (i == 0) ? 0 : 1;
+            int w = width >> shift;
+            int h = height >> shift;
+            buffer.position(rowStride * (crop.top >> shift) + pixelStride * (crop.left >> shift));
+            for (int row = 0; row < h; row++) {
+                int length;
+                if (pixelStride == 1 && outputStride == 1) {
+                    length = w;
+                    buffer.get(data, channelOffset, length);
+                    channelOffset += length;
+                } else {
+                    length = (w - 1) * pixelStride + 1;
+                    buffer.get(rowData, 0, length);
+                    for (int col = 0; col < w; col++) {
+                        data[channelOffset] = rowData[col * pixelStride];
+                        channelOffset += outputStride;
+                    }
+                }
+                if (row < h - 1) {
+                    buffer.position(buffer.position() + rowStride - length);
+                }
+
+
+            }
+
+        }
+        return data;
+    }
 
 
 }

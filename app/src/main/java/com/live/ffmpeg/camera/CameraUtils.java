@@ -225,11 +225,7 @@ public class CameraUtils {
     @RequiresApi(api = Build.VERSION_CODES.M)
     public static void openCamera(Context context, final int width, final int height) {
 
-
-        setUpCameraOutputs(width, height);
-        configureTransform(width, height);
-
-
+        setUpCameraOutputs(640, 480);
         FFmpegUtils.init(width ,height ,width ,height);
         FFmpegUtils.encoderVideoinit(width ,height ,width ,height);
         try {
@@ -292,6 +288,7 @@ public class CameraUtils {
     public static void createCameraPreviewSession(SurfaceView texture) {
             try {
                 mPreviewRequestBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
+
                 mPreviewRequestBuilder.addTarget(texture.getHolder().getSurface());
 
                 mPreviewReader =
@@ -316,12 +313,12 @@ public class CameraUtils {
                                 mCaptureSession = cameraCaptureSession;
                                 try {
                                     // Auto focus should be continuous for camera preview.
-                                    mPreviewRequestBuilder.set(
-                                            CaptureRequest.CONTROL_AF_MODE,
-                                            CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-                                    // Flash is automatically enabled when necessary.
-                                    mPreviewRequestBuilder.set(
-                                            CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
+//                                    mPreviewRequestBuilder.set(
+//                                            CaptureRequest.CONTROL_AF_MODE,
+//                                            CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+//                                    // Flash is automatically enabled when necessary.
+//                                    mPreviewRequestBuilder.set(
+//                                            CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
 
                                     // Finally, we start displaying the camera preview.
                                     mPreviewRequest = mPreviewRequestBuilder.build();
