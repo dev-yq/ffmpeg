@@ -12,6 +12,12 @@ add_library(ffmpeg SHARED
         wavreader.c
         RtmpLivePublish.cpp
         FrameEncoder.cpp
+        FrameDecoder.cpp
+        AudioDecoder.cpp
+
+        AudioData.hpp
+        AudioDataProvider.cpp
+        VideoDecoder.cpp
         AudioEncoder.cpp)
 add_library(avcodec  SHARED
         IMPORTED )
@@ -23,7 +29,7 @@ add_library(avdevice  SHARED
 set_target_properties(  avdevice   PROPERTIES IMPORTED_LOCATION      ../../../../libs/armeabi-v7a/libavdevice.so )
 add_library(avfilter  SHARED IMPORTED )
 set_target_properties(  avfilter   PROPERTIES IMPORTED_LOCATION   ../../../../libs/armeabi-v7a/libavfilter.so)
-add_library(avformat  STATIC IMPORTED )
+add_library(avformat  SHARED IMPORTED )
 set_target_properties(avformat   PROPERTIES IMPORTED_LOCATION    ../../../../libs/armeabi-v7a/libavformat.so)
 
 add_library(avutil  SHARED
@@ -60,14 +66,11 @@ add_library(aac  STATIC
 set_target_properties( aac  PROPERTIES IMPORTED_LOCATION   ../../../../libs/armeabi-v7a/libfdk-aac.a)
 find_library( # Sets the name of the path variable.
               log-lib
+              log
+        android
+        )
 
-              # Specifies the name of the NDK library that
-              # you want CMake to locate.
-              log )
 
-# Specifies libraries CMake should link to your target library. You
-# can link multiple libraries, such as libraries you define in this
-# build script, prebuilt third-party libraries, or system libraries.
 
 target_link_libraries( # Specifies the target library.
                         ffmpeg
@@ -83,6 +86,11 @@ target_link_libraries( # Specifies the target library.
                         yuv
                         aac
                         rtmp
+                        OpenSLES
+                        ${log-lib}
+                        android
+                         ${egl}
+                        ${gles}
                            # Links the target library to the log library
                        # included in the NDK.
-                       ${log-lib} )
+                       )

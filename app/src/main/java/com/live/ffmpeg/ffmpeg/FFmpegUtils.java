@@ -1,5 +1,7 @@
 package com.live.ffmpeg.ffmpeg;
 
+import android.view.Surface;
+
 /**
  * @作者： $User$
  * @时间： $date$
@@ -145,4 +147,22 @@ public class FFmpegUtils {
 
     //结束
     public static native int close();
+
+
+
+
+    public      static   native      int     initDecode(String      url);
+
+
+    public   static      native   void    stop();
+
+
+
+    public   static    native    void   start(Surface surface);
 }
+
+
+
+
+
+

@@ -12,6 +12,8 @@
 #include "RtmpLivePublish.h"
 
 #include "yuv/libyuv.h"
+#include "FrameDecoder.h"
+
 using namespace libyuv;
 
 #include  <android/log.h>
@@ -26,6 +28,8 @@ jbyte *temp_i420_data;
 jbyte *temp_i420_data_scale;
 jbyte *temp_i420_data_rotate;
 
+
+FrameDecoder*frameDecoder;
 AudioEncoder* audioEncoder;
 RtmpLivePublish* rtmpLivePublish;
 AVDictionary * param = NULL;
@@ -467,7 +471,7 @@ Java_com_live_ffmpeg_ffmpeg_FFmpegUtils_changeWidthAndHeight(JNIEnv *env, jclass
             out[k]= in [nPos - i];
 
 
-            LOGE("-------------=%d" ,   out[k]);
+
             k++;
             nPos += srcWidth;
         }
@@ -497,4 +501,30 @@ Java_com_live_ffmpeg_ffmpeg_FFmpegUtils_changeWidthAndHeight(JNIEnv *env, jclass
     env->ReleaseByteArrayElements(src  ,out ,0);
 
     return   dst;
+}
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_live_ffmpeg_ffmpeg_FFmpegUtils_initDecode(JNIEnv *env, jclass type, jstring url_) {
+    const char *url = env->GetStringUTFChars(url_, 0);
+    frameDecoder   = new FrameDecoder();
+    frameDecoder->init(url);
+    env->ReleaseStringUTFChars(url_, url);
+
+
+    return 0;
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_live_ffmpeg_ffmpeg_FFmpegUtils_stop(JNIEnv *env, jclass type) {
+
+    frameDecoder->stop();
+    free(frameDecoder);
+
+}extern "C"
+JNIEXPORT void JNICALL
+Java_com_live_ffmpeg_ffmpeg_FFmpegUtils_start(JNIEnv *env, jclass type  ,jobject  obj) {
+
+    frameDecoder->player(env,obj);
+
 }

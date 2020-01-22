@@ -32,4 +32,4 @@ public:
 };
 
 
-#endif //RIEMANNLEELIVEPROJECT_RTMPLIVEPUBLISH_H
+#endif

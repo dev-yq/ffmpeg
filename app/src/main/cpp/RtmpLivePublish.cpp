@@ -6,7 +6,6 @@
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,TAG,__VA_ARGS__)
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR,TAG,__VA_ARGS__)
-
 #define RTMP_HEAD_SIZE   (sizeof(RTMPPacket) + RTMP_MAX_HEADER_SIZE)
 
 RtmpLivePublish::RtmpLivePublish() {
@@ -30,8 +29,7 @@ void RtmpLivePublish::init(unsigned char * url) {
     rtmp->Link.timeout =5;
     RTMP_SetupURL(rtmp, (char *)url);
     RTMP_EnableWrite(rtmp);
-
-      int  a =  RTMP_Connect(rtmp, NULL);
+    int  a =  RTMP_Connect(rtmp, NULL);
     LOGI("RTMP_Connect error=%d" , a );
 
     //建立RTMP socket连接
@@ -80,12 +78,9 @@ void RtmpLivePublish::addSequenceH264Header(unsigned char *sps, int sps_len, uns
     body[i++] = 0x00;
     body[i++] = 0x00;
 
-    /*AVCDecoderConfigurationRecord*/
-    //configurationVersion版本号，1
     body[i++] = 0x01;
-    //AVCProfileIndication sps[1]
     body[i++] = sps[1];
-    //profile_compatibility sps[2]
+
     body[i++] = sps[2];
     //AVCLevelIndication sps[3]
     body[i++] = sps[3];

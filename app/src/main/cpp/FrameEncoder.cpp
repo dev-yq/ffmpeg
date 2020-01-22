@@ -56,15 +56,9 @@ int FrameEncoder::encodeFrame(char* inBytes, int frameSize, int pts,
     int i420_y_size = 640 * 480;
     int i420_u_size = (640 >> 1) * (480 >> 1);
     int i420_v_size = frameSize-i420_y_size -i420_u_size;
-
-
-
-
     uint8_t *i420_y_data = (uint8_t *)inBytes;
     uint8_t *i420_u_data = (uint8_t *)inBytes + i420_y_size;
     uint8_t *i420_v_data = (uint8_t *)inBytes + i420_y_size + i420_u_size;
-
-
     x264_param_t *params   = setParams();
     x264_t *encoder = x264_encoder_open(params);
     x264_picture_t* pic_in = (x264_picture_t*)malloc(sizeof(x264_picture_t));
@@ -132,28 +126,45 @@ bool FrameEncoder::close() {
 
   x264_param_t*  FrameEncoder::setParams() {
 
-
     x264_param_t* params = (x264_param_t*)malloc(sizeof(x264_param_t));
       x264_param_default(params);
-    x264_param_default_preset(params, "fast", "zerolatency");
-
+    x264_param_default_preset(params, "ultrafast", "zerolatency");
     //I帧间隔
     params->i_csp = X264_CSP_I420;
+
     params->i_width = 480;
     params->i_height = 640;
-    params->i_threads = X264_SYNC_LOOKAHEAD_AUTO;
-    params->i_fps_num = 25;//getFps();
+    params->i_threads = 1;
+    params->i_fps_num =30;//getFps();
     params->i_fps_den = 1;
     // Intra refres:
-    params->i_keyint_max = 30;
-    params->i_log_level     = X264_LOG_DEBUG;
+    params->i_keyint_max = 20;
+      params->b_vfr_input = 0;
+
+
+
+      params->analyse.b_transform_8x8 = 1;
+      params->rc.f_aq_strength = 1.5;
+
+      params->rc.i_aq_mode = 0;
+      params->rc.f_qcompress = 0.0;
+      params->rc.f_ip_factor = 0.5;
+      params->rc.f_rate_tolerance = 0.1;
+
+      params->analyse.i_direct_mv_pred = X264_DIRECT_PRED_AUTO;
+      params->analyse.i_me_method = X264_ME_DIA;
+      params->analyse.i_me_range = 16;
+      params->analyse.i_subpel_refine = 2;
+      // pParameter->analyse.i_noise_reduction = 1;
+
+      params->i_log_level     = X264_LOG_DEBUG;
     params->i_keyint_min = 1;
-    params->rc.i_bitrate = 1200 ;
+    params->rc.i_bitrate = 200 ;
+    params->rc.i_rc_method       = X264_RC_ABR;
     x264_param_apply_profile(params, "baseline");
-
-
     return params;
 }
+
 
 
 
