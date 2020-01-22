@@ -39,7 +39,7 @@ public:
     int isPause=1;
     pthread_t playId;//处理线程
     std::vector<AVPacket*> queue;//队列
-   // std::queue<AVPacket*> queueNull;//空队列
+
     AVCodecContext *codec;//解码器上下文
 
     SwrContext *swrContext;
@@ -51,19 +51,16 @@ public:
     //条件变量
     pthread_cond_t cond;
 
-    double clock;//从第一zhen开始所需要时间
+    double clock  = -1;//从第一zhen开始所需要时间
 
     AVRational time_base;
+    SLObjectItf engineObject;       //引擎对象
+    SLEngineItf engineItf;          //引擎接口
+    SLObjectItf mixObject;          //输出混音对象
+    SLObjectItf playerObject;       //播放器对象
+    SLPlayItf playItf;              //播放器接口
+    SLAndroidSimpleBufferQueueItf bufferQueueItf;
 
-    SLObjectItf engineObject;
-    SLEngineItf engineEngine;
-    SLEnvironmentalReverbItf outputMixEnvironmentalReverb;
-    SLObjectItf outputMixObject;
-    SLObjectItf bqPlayerObject;
-    SLEffectSendItf bqPlayerEffectSend;
-    SLVolumeItf bqPlayerVolume;
-    SLPlayItf bqPlayerPlay;
-    SLAndroidSimpleBufferQueueItf bqPlayerBufferQueue;
 };
 
 };

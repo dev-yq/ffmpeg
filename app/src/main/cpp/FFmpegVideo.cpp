@@ -59,7 +59,7 @@ void *videoPlay(void *args){
 
 
         if (packet){
-            LOGE("解码 %d",packet->size);
+
 
             int  ret = 0;
             ret = avcodec_send_packet(ffmpegVideo->codec ,packet);
@@ -84,36 +84,36 @@ void *videoPlay(void *args){
             LOGE("frame 宽%d,高%d",frame->width,frame->height);
             LOGE("rgb格式 宽%d,高%d",rgb_frame->width,rgb_frame->height);
 
-//            play = pts*av_q2d(ffmpegVideo->time_base);
-//            //纠正时间
-//            play = ffmpegVideo->synchronize(frame,play);
-//
-//            delay = play - last_play;
-//            if (delay <= 0 || delay > 1) {
-//                delay = last_delay;
-//            }
-//            audio_clock = ffmpegVideo->ffmpegMusic->clock;
-//            last_delay = delay;
-//            last_play = play;
-////音频与视频的时间差
-//            diff = ffmpegVideo->clock - audio_clock;
-////        在合理范围外  才会延迟  加快
-//            sync_threshold = (delay > 0.01 ? 0.01 : delay);
-//
-//            if (fabs(diff) < 10) {
-//                if (diff <= -sync_threshold) {
-//                    delay = 0;
-//                } else if (diff >=sync_threshold) {
-//                    delay = 2 * delay;
-//                }
-//            }
-//            start_time += delay;
-//            actual_delay=start_time-av_gettime()/1000000.0;
-//            if (actual_delay < 0.01) {
-//                actual_delay = 0.01;
-//            }
-//            av_usleep(actual_delay*1000000.0+6000);
-//            LOGE("播放视频");
+            play = pts*av_q2d(ffmpegVideo->time_base);
+            //纠正时间
+            play = ffmpegVideo->synchronize(frame,play);
+
+            delay = play - last_play;
+            if (delay <= 0 || delay > 1) {
+                delay = last_delay;
+            }
+            audio_clock = ffmpegVideo->ffmpegMusic->clock;
+            last_delay = delay;
+            last_play = play;
+//音频与视频的时间差
+            diff = ffmpegVideo->clock - audio_clock;
+//        在合理范围外  才会延迟  加快
+            sync_threshold = (delay > 0.01 ? 0.01 : delay);
+
+            if (fabs(diff) < 10) {
+                if (diff <= -sync_threshold) {
+                    delay = 0;
+                } else if (diff >=sync_threshold) {
+                    delay = 2 * delay;
+                }
+            }
+            start_time += delay;
+            actual_delay=start_time-av_gettime()/1000000.0;
+            if (actual_delay < 0.01) {
+                actual_delay = 0.01;
+            }
+            av_usleep(actual_delay*1000000.0+6000);
+            LOGE("播放视频");
             video_call(rgb_frame);
         }
 

@@ -15,7 +15,7 @@ void *MusicPlay(void *args){
            int  code =  musicplay->CreatePlayer();
 
 
-           LOGE("===========%d",code);
+
     pthread_exit(0);//退出线程
 }
 //得到pcm数据
@@ -25,24 +25,40 @@ int getPcm(FFmpegMusic *agrs){
     int size;
     int gotframe;
     LOGE("准备解码");
-    while (agrs->isPlay){
+    if (agrs->isPlay){
         size=0;
         agrs->get(avPacket);
         //时间矫正
         if (avPacket->pts != AV_NOPTS_VALUE) {
             agrs->clock = av_q2d(agrs->time_base) * avPacket->pts;
         }
-        //            解码  mp3   编码格式frame----pcm   frame
+
         LOGE("解码");
-        avcodec_decode_audio4(agrs->codec, avFrame, &gotframe, avPacket);
-        if (gotframe) {
+
+        int  ret = 0;
+        ret = avcodec_send_packet(agrs->codec ,avPacket);
+        if (ret < 0){
+            LOGE("格式错误");
+            return   -1;
+        }
+        ret =  avcodec_receive_frame(agrs->codec,avFrame);
+
+        if (ret < 0 ||ret == AVERROR(EAGAIN) || ret == AVERROR_EOF){
+            LOGE("格式错误");
+            return   -1;
+        }
+
+
+
+
+
 
             swr_convert(agrs->swrContext, &agrs->out_buffer, 44100 * 2, (const uint8_t **) avFrame->data, avFrame->nb_samples);
 //                缓冲区的大小
             size = av_samples_get_buffer_size(NULL, agrs->out_channer_nb, avFrame->nb_samples,
                                               AV_SAMPLE_FMT_S16, 1);
-            break;
-        }
+
+
     }
     av_free(avPacket);
     av_frame_free(&avFrame);
@@ -50,9 +66,9 @@ int getPcm(FFmpegMusic *agrs){
 
 }
 //回调函数
-void bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context){
+void  playCallback(SLAndroidSimpleBufferQueueItf bq, void *context){
     //得到pcm数据
-    LOGE("回调pcm数据");
+    LOGE("回调pcm数据=================");
     FFmpegMusic *musicplay = (FFmpegMusic *) context;
     int datasize = getPcm(musicplay);
     if(datasize>0){
@@ -140,7 +156,6 @@ int FFmpegMusic::get(AVPacket *avPacket) {
     LOGE("取出队列");
     pthread_mutex_lock(&mutex);
     while (isPlay){
-        LOGE("取出对垒 xxxxxx");
         if(!queue.empty()&&isPause){
             LOGE("ispause %d",isPause);
             //如果队列中有数据可以拿出来
@@ -179,27 +194,25 @@ void FFmpegMusic::stop() {
     pthread_cond_signal(&cond);
     pthread_mutex_unlock(&mutex);
     pthread_join(playId, 0);
-    if (bqPlayerPlay) {
-        (*bqPlayerPlay)->SetPlayState(bqPlayerPlay, SL_PLAYSTATE_STOPPED);
-        bqPlayerPlay = 0;
+    if (playItf) {
+        (*playItf)->SetPlayState(playItf, SL_PLAYSTATE_STOPPED);
+        playItf = 0;
     }
-    if (bqPlayerObject) {
-        (*bqPlayerObject)->Destroy(bqPlayerObject);
-        bqPlayerObject = 0;
+    if (playerObject) {
+        (*playerObject)->Destroy(playerObject);
+        playerObject = 0;
 
-        bqPlayerBufferQueue = 0;
-        bqPlayerVolume = 0;
     }
 
-    if (outputMixObject) {
-        (*outputMixObject)->Destroy(outputMixObject);
-        outputMixObject = 0;
+    if (mixObject) {
+        (*mixObject)->Destroy(mixObject);
+        mixObject = 0;
     }
 
     if (engineObject) {
         (*engineObject)->Destroy(engineObject);
         engineObject = 0;
-        engineEngine = 0;
+        engineItf = 0;
     }
     if (swrContext)
         swr_free(&swrContext);
@@ -213,85 +226,57 @@ void FFmpegMusic::stop() {
 }
 
 int FFmpegMusic::CreatePlayer() {
-    LOGE("创建opnsl es播放器");
-    //创建播放器
-    SLresult result;
-    // 创建引擎engineObject
-    result = slCreateEngine(&engineObject, 0, NULL, 0, NULL, NULL);
-    if (SL_RESULT_SUCCESS != result) {
-        return 0;
-    }
-    // 实现引擎engineObject
-    result = (*engineObject)->Realize(engineObject, SL_BOOLEAN_FALSE);
-    if (SL_RESULT_SUCCESS != result) {
-        return 0;
-    }
-    // 获取引擎接口engineEngine
-    result = (*engineObject)->GetInterface(engineObject, SL_IID_ENGINE,
-                                           &engineEngine);
-    if (SL_RESULT_SUCCESS != result) {
-        return 0;
-    }
-    // 创建混音器outputMixObject
-    result = (*engineEngine)->CreateOutputMix(engineEngine, &outputMixObject, 0,
-                                              0, 0);
-    if (SL_RESULT_SUCCESS != result) {
-        return 0;
-    }
-    // 实现混音器outputMixObject
-    result = (*outputMixObject)->Realize(outputMixObject, SL_BOOLEAN_FALSE);
-    if (SL_RESULT_SUCCESS != result) {
-        return 0;
-    }
-    result = (*outputMixObject)->GetInterface(outputMixObject, SL_IID_ENVIRONMENTALREVERB,
-                                              &outputMixEnvironmentalReverb);
-    const SLEnvironmentalReverbSettings settings = SL_I3DL2_ENVIRONMENT_PRESET_DEFAULT;
-    if (SL_RESULT_SUCCESS == result) {
-        (*outputMixEnvironmentalReverb)->SetEnvironmentalReverbProperties(
-                outputMixEnvironmentalReverb, &settings);
-    }
 
+    slCreateEngine(&engineObject, 0, NULL, 0, NULL, NULL);
+    (*engineObject)->Realize(engineObject, SL_BOOLEAN_FALSE);
+    //获取引擎接口
+//    SLEngineItf engineItf;
+    (*engineObject)->GetInterface(engineObject, SL_IID_ENGINE, &engineItf);
+    //通过引擎接口获取输出混音
+//    SLObjectItf mixObject;
+    (*engineItf)->CreateOutputMix(engineItf, &mixObject, 0, 0, 0);
+    (*mixObject)->Realize(mixObject, SL_BOOLEAN_FALSE);
 
+    //设置播放器参数
+    SLDataLocator_AndroidSimpleBufferQueue
+            android_queue = {SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE, 2};
 
-    SLDataLocator_AndroidSimpleBufferQueue android_queue = {SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE,
-                                                            2};
-    SLDataFormat_PCM pcm = {SL_DATAFORMAT_PCM, 2, SL_SAMPLINGRATE_44_1, SL_PCMSAMPLEFORMAT_FIXED_16,
+    //pcm格式
+    SLDataFormat_PCM pcm = {SL_DATAFORMAT_PCM,
+                            2,//两声道
+                            SL_SAMPLINGRATE_44_1,
                             SL_PCMSAMPLEFORMAT_FIXED_16,
-                            SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT,
+                            SL_PCMSAMPLEFORMAT_FIXED_16,
+                            SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT,//
                             SL_BYTEORDER_LITTLEENDIAN};
-//   新建一个数据源 将上述配置信息放到这个数据源中
+
     SLDataSource slDataSource = {&android_queue, &pcm};
-//    设置混音器
-    SLDataLocator_OutputMix outputMix = {SL_DATALOCATOR_OUTPUTMIX, outputMixObject};
 
+    //输出管道
+    SLDataLocator_OutputMix outputMix = {SL_DATALOCATOR_OUTPUTMIX, mixObject};
     SLDataSink audioSnk = {&outputMix, NULL};
-    const SLInterfaceID ids[3] = {SL_IID_BUFFERQUEUE, SL_IID_EFFECTSEND,
-            /*SL_IID_MUTESOLO,*/ SL_IID_VOLUME};
-    const SLboolean req[3] = {SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE,
-            /*SL_BOOLEAN_TRUE,*/ SL_BOOLEAN_TRUE};
-    //先讲这个
-    (*engineEngine)->CreateAudioPlayer(engineEngine, &bqPlayerObject, &slDataSource,
-                                       &audioSnk, 2,
-                                       ids, req);
-    //初始化播放器
-    (*bqPlayerObject)->Realize(bqPlayerObject, SL_BOOLEAN_FALSE);
 
-//    得到接口后调用  获取Player接口
-    (*bqPlayerObject)->GetInterface(bqPlayerObject, SL_IID_PLAY, &bqPlayerPlay);
+    const SLInterfaceID ids[3] = {SL_IID_BUFFERQUEUE, SL_IID_EFFECTSEND, SL_IID_VOLUME};
+    const SLboolean req[3] = {SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE};
+    //通过引擎接口，创建并且初始化播放器对象
+//    SLObjectItf playerObject;
+    (*engineItf)->CreateAudioPlayer(engineItf, &playerObject, &slDataSource, &audioSnk, 1, ids,
+                                    req);
+    (*playerObject)->Realize(playerObject, SL_BOOLEAN_FALSE);
 
-//    注册回调缓冲区 //获取缓冲队列接口
-    (*bqPlayerObject)->GetInterface(bqPlayerObject, SL_IID_BUFFERQUEUE,
-                                    &bqPlayerBufferQueue);
-    //缓冲接口回调
-    (*bqPlayerBufferQueue)->RegisterCallback(bqPlayerBufferQueue, bqPlayerCallback, this);
-//    获取音量接口
-    (*bqPlayerObject)->GetInterface(bqPlayerObject, SL_IID_VOLUME, &bqPlayerVolume);
+    //获取播放接口
+//    SLPlayItf playItf;
+    (*playerObject)->GetInterface(playerObject, SL_IID_PLAY, &playItf);
+    //获取缓冲接口
+//    SLAndroidSimpleBufferQueueItf bufferQueueItf;
+    (*playerObject)->GetInterface(playerObject, SL_IID_BUFFERQUEUE, &bufferQueueItf);
 
-//    获取播放状态接口
-    (*bqPlayerPlay)->SetPlayState(bqPlayerPlay, SL_PLAYSTATE_PLAYING);
+    //注册缓冲回调
+    (*bufferQueueItf)->RegisterCallback(bufferQueueItf, playCallback, this);
 
-    bqPlayerCallback(bqPlayerBufferQueue, this);
+    (*playItf)->SetPlayState(playItf, SL_PLAYSTATE_PLAYING);
 
+    playCallback(bufferQueueItf, this);
     return 1;
 }
 

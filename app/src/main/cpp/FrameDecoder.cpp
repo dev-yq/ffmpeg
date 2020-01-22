@@ -95,7 +95,6 @@ void * FrameDecoder::start(void *arg) {
     AVCodec * vidoeCode   =    avcodec_find_decoder(avCodecParameters->codec_id);
 
 
-    LOGE("--------=%s" ,vidoeCode->name);
     AVCodecContext *avCodecContext = avcodec_alloc_context3(vidoeCode);
     avcodec_parameters_to_context(avCodecContext, avCodecParameters);
     frameDecoder->videoDecoder->setAvCodecContext(avCodecContext);
@@ -122,9 +121,14 @@ void * FrameDecoder::start(void *arg) {
     frameDecoder-> audioDecoder->setAvCodecContext(avCodecContext1);
 
     frameDecoder->audioDecoder->time_base = frameDecoder->pFormatCtx->streams[audioIndex]->time_base;
+
+    if (avcodec_open2(avCodecContext1, avCodec, NULL) < 0) {
+        LOGE("打开失败");
+        return reinterpret_cast<void *>(-1);
+    }
     AVPacket *  vPacket   =(AVPacket *)(malloc(sizeof( AVPacket )));
     frameDecoder-> videoDecoder->setFFmepegMusic( frameDecoder-> audioDecoder);
-//    frameDecoder-> audioDecoder->play();
+    frameDecoder-> audioDecoder->play();
     frameDecoder-> videoDecoder->play();
     LOGE("开始解码");
     while (frameDecoder->isPlayer){
