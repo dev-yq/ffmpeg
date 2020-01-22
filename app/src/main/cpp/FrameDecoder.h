@@ -6,18 +6,19 @@
 
 #ifndef FFMPEG3_FRAMEDECODER_H
 #define FFMPEG3_FRAMEDECODER_H
-#include "VideoDecoder.h"
-
+#include "FFmpegVideo.h"
+#include "FFmpegMusic.h"
 
 
 extern "C"  {
 
-#include "AudioDecoder.h"
 
+#include <unistd.h>
+#include <libavutil/time.h>
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
 #include <android/log.h>
-
+#include <android/native_window_jni.h>
 }
 
 class     FrameDecoder{
@@ -27,9 +28,12 @@ private:
     AVPacket *vPacket;
     AVFormatContext	*pFormatCtx;
     AVFrame	*pFrame;
-    AudioDecoder *audioDecoder;
-    VideoDecoder * videoDecoder;
+    FFmpegMusic *audioDecoder;
+    FFmpegVideo * videoDecoder;
     const char  *   url;
+
+
+    bool     isPlayer;
 public:
 
 

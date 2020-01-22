@@ -12,12 +12,12 @@ add_library(ffmpeg SHARED
         wavreader.c
         RtmpLivePublish.cpp
         FrameEncoder.cpp
-        FrameDecoder.cpp
-        AudioDecoder.cpp
 
-        AudioData.hpp
-        AudioDataProvider.cpp
-        VideoDecoder.cpp
+
+        FrameDecoder.cpp
+        FFmpegMusic.cpp
+
+        FFmpegVideo.cpp
         AudioEncoder.cpp)
 add_library(avcodec  SHARED
         IMPORTED )
