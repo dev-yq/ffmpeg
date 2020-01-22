@@ -51,7 +51,7 @@ public:
     //条件变量
     pthread_cond_t cond;
 
-    double clock  = -1;//从第一zhen开始所需要时间
+    double clock  ;//从第一zhen开始所需要时间
 
     AVRational time_base;
     SLObjectItf engineObject;       //引擎对象

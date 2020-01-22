@@ -13,9 +13,6 @@
 void *MusicPlay(void *args){
     FFmpegMusic *musicplay = (FFmpegMusic *) args;
            int  code =  musicplay->CreatePlayer();
-
-
-
     pthread_exit(0);//退出线程
 }
 //得到pcm数据
@@ -47,9 +44,6 @@ int getPcm(FFmpegMusic *agrs){
             LOGE("格式错误");
             return   -1;
         }
-
-
-
 
 
 
@@ -100,7 +94,6 @@ int createFFmpeg(FFmpegMusic *agrs){
     swr_alloc_set_opts( agrs->swrContext, out_ch_layout, out_formart, out_sample_rate,
                         agrs->codec->channel_layout, agrs->codec->sample_fmt,  agrs->codec->sample_rate, 0,
                         NULL);
-
     swr_init( agrs->swrContext);
 //    获取通道数  2
     agrs->out_channer_nb = av_get_channel_layout_nb_channels(AV_CH_LAYOUT_STEREO);

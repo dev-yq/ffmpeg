@@ -35,29 +35,33 @@ void call_video_play(AVFrame *frame) {
     ANativeWindow_unlockAndPost(window);
 }
 int FrameDecoder::init(const  char *url) {
-    this->url    =url;
+
     videoDecoder   = new FFmpegVideo();
     audioDecoder    = new FFmpegMusic();
 
+    avformat_network_init();
+
+
+
+    pFormatCtx  =     avformat_alloc_context();
+
+
+    int    res  =  avformat_open_input(&pFormatCtx ,    url,NULL ,NULL);
+    if (res!=0){
+        LOGE("地址解析失败");
+        return -1;
+    }
     return      0;
 
 }
 
 void * FrameDecoder::start(void *arg) {
 
-    const char  *   url   = "rtmp://118.190.54.75:1935/hls";
-    avformat_network_init();
+
     FrameDecoder * frameDecoder =  (FrameDecoder*)arg;
-    frameDecoder->pFormatCtx  =     avformat_alloc_context();
 
-
-    int    res  =  avformat_open_input(&frameDecoder->pFormatCtx ,    url,NULL ,NULL);
-    if (res!=0){
-        LOGE("地址解析失败");
-        return reinterpret_cast<void *>(-1);
-    }
     //获取视频流媒
-    res   =     avformat_find_stream_info(frameDecoder->pFormatCtx  ,NULL);
+   int  res   =     avformat_find_stream_info(frameDecoder->pFormatCtx  ,NULL);
     if(res<0){
         LOGE("获取信息失败");
         return reinterpret_cast<void *>(-1);
